@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Study Timetable Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        form { margin: 20px auto; width: 300px; }
+        input, button { display: block; width: 100%; margin: 10px 0; padding: 10px; }
+        table { width: 60%; margin: 20px auto; border-collapse: collapse; }
+        th, td { border: 1px solid black; padding: 10px; text-align: center; }
+        .remove-btn { background-color: red; color: white; border: none; cursor: pointer; padding: 5px 10px; }
+        #generateBtn, #clearBtn { background-color: blue; color: white; border: none; cursor: pointer; padding: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h2>AI Study Timetable Generator</h2>
+    
+    <form id="studyForm">
+        <input type="text" id="subject" placeholder="Enter Subject" required>
+        <input type="number" id="hours" placeholder="Study Hours per Day" required min="1">
+        <input type="date" id="examDate" required>
+        <button type="button" id="addSubject">Add Subject</button>
+    </form>
+
+    <h3>Subjects Added</h3>
+    <table id="subjectTable">
+        <tr>
+            <th>Subject</th>
+            <th>Action</th>
+        </tr>
+    </table>
+
+    <button id="generateBtn">Generate Timetable</button>
+    <button id="clearBtn">Clear All</button>
+
+    <h3>Generated Timetable</h3>
+    <table id="timetable">
+        <tr>
+            <th>Day</th>
+            <th>Schedule</th>
+        </tr>
+    </table>
+
+    <script>
+        let subjects = [];
+
+        document.getElementById("addSubject").addEventListener("click", function() {
+            let subjectInput = document.getElementById("subject");
+            let subject = subjectInput.value.trim();
+
+            if (subject === "") {
+                alert("Please enter a subject.");
+                return;
+            }
+
+            subjects.push(subject);
+            updateSubjectTable();
+            subjectInput.value = "";
+        });
+
+        function updateSubjectTable() {
+            let table = document.getElementById("subjectTable");
+            table.innerHTML = "<tr><th>Subject</th><th>Action</th></tr>";
+
+            subjects.forEach((subject, index) => {
+                let row = table.insertRow();
+                row.insertCell(0).textContent = subject;
+                let removeCell = row.insertCell(1);
+                let removeBtn = document.createElement("button");
+                removeBtn.textContent = "Remove";
+                removeBtn.className = "remove-btn";
+                removeBtn.onclick = function() {
+                    subjects.splice(index, 1);
+                    updateSubjectTable();
+                };
+                removeCell.appendChild(removeBtn);
+            });
+        }
+
+        document.getElementById("generateBtn").addEventListener("click", function() {
+            let hours = document.getElementById("hours").value.trim();
+            let examDate = document.getElementById("examDate").value.trim();
+
+            if (subjects.length === 0) {
+                alert("Please add at least one subject before generating.");
+                return;
+            }
+
+            if (!hours || isNaN(hours) || hours <= 0) {
+                alert("Please enter a valid number for study hours.");
+                return;
+            }
+
+            if (!examDate) {
+                alert("Please select an exam date.");
+                return;
+            }
+
+            fetch("http://127.0.0.1:5000/generate_ai_timetable", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subjects, daily_hours: hours, exam_date: examDate })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    updateTable(data.timetable);
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        });
+
+        function updateTable(timetable) {
+            let table = document.getElementById("timetable");
+            table.innerHTML = "<tr><th>Day</th><th>Schedule</th></tr>";
+
+            timetable.forEach(day => {
+                let row = table.insertRow();
+                row.insertCell(0).textContent = day.day;
+                let scheduleCell = row.insertCell(1);
+                scheduleCell.innerHTML = day.schedule.map(s => `${s.subject} - ${s.duration}`).join("<br>");
+            });
+        }
+
+        document.getElementById("clearBtn").addEventListener("click", function() {
+            subjects = [];
+            updateSubjectTable();
+            document.getElementById("timetable").innerHTML = "<tr><th>Day</th><th>Schedule</th></tr>";
+        });
+    </script>
+
+</body>
+</html
